@@ -1,4 +1,4 @@
-# INMET Alertas
+# INMET Alertas para Home Assistant
 
 **INMET Alertas** é uma integração personalizada para o Home Assistant que permite monitorar os alertas meteorológicos emitidos pelo INMET (Instituto Nacional de Meteorologia) através do feed RSS oficial. A integração exibe informações como o status, evento, severidade, início, fim e descrição do alerta.
 
@@ -14,6 +14,8 @@
   - **Fim**: data e hora do fim da validade.
   - **Descrição**: resumo do alerta.
   - **Área**: área de cobertura do alerta.
+ 
+![image](https://github.com/user-attachments/assets/4410fad4-1128-4b52-9052-1776ad5aece5)
 
 ## Requisitos
 
@@ -36,11 +38,12 @@ sensor:
 
 4. Reinicie o Home Assistant novamente.
 
-Exibição no Lovelace
+## Exibição no Lovelace
 
 *Card de Alerta*
 
 Use um card de Markdown no Lovelace para exibir os detalhes de cada alerta:
+```markdown
 type: markdown
 title: Alertas do INMET
 content: >
@@ -63,26 +66,26 @@ content: >
 
 
   {% endfor %} {% else %} Nenhum alerta ativo no momento. {% endif %}
+```
 
 *Card de Contagem de Alertas*
 
 Você também pode usar um card de entidades para exibir a contagem total de alertas:
+```markdown
 type: entities
 entities:
   - entity: sensor.inmet_alertas
     name: Total de Alertas
+```
 
-
-Como Funciona
+## Como Funciona
 
     A integração utiliza o feed RSS oficial do INMET para obter os alertas.
     Somente os alertas válidos (com início e fim no período atual) são exibidos.
     Os alertas são armazenados como atributos do sensor sensor.inmet_alertas.
 
-Contribuição
+## Contribuição
 
 Sinta-se à vontade para abrir issues ou pull requests neste repositório. Sugestões e melhorias são bem-vindas!
 
-Licença
-
-Este projeto é distribuído sob a licença MIT. Consulte o arquivo LICENSE para mais detalhes.
+Esta integração só deve ser utilizada para os seus próprios fins educacionais. Se você estiver interessado em acessar os dados do INMET comercialmente, entre em contato com a Central de Serviços - INMET [https://portal.inmet.gov.br/central-de-servicos].
