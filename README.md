@@ -90,4 +90,4 @@ entities:
 
 Sinta-se à vontade para abrir issues ou pull requests neste repositório. Sugestões e melhorias são bem-vindas!
 
-Esta integração só deve ser utilizada para os seus próprios fins educacionais. Se você estiver interessado em acessar os dados do INMET comercialmente, entre em contato com a [Central de Serviços - INMET] (https://portal.inmet.gov.br/central-de-servicos).
+Esta integração só deve ser utilizada para os seus próprios fins educacionais. Se você estiver interessado em acessar os dados do INMET comercialmente, entre em contato com a [Central de Serviços - INMET](https://portal.inmet.gov.br/central-de-servicos).
