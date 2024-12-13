@@ -17,6 +17,7 @@
 - Dispara eventos para cada alerta registrado individualmente, afim de possibilitar usá-los para disparar automações
  
 ![image](https://github.com/user-attachments/assets/4410fad4-1128-4b52-9052-1776ad5aece5)
+![image](https://github.com/user-attachments/assets/3fe8ebb7-573c-48fe-8764-68f0e6cf2db2)
 
 ## Requisitos
 
