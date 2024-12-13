@@ -2,7 +2,7 @@
   "domain": "inmet_alertas",
   "name": "INMET Alertas",
   "iot_class": "cloud_polling",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "documentation": "https://github.com/roalvesrj/hacs-inmet-alertas",
   "issue_tracker": "https://github.com/roalvesrj/hacs-inmet-alertas",
   "icon": "mdi:cloud-alert",
