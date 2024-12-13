@@ -14,6 +14,7 @@
   - **Fim**: data e hora do fim da validade.
   - **Descrição**: resumo do alerta.
   - **Área**: área de cobertura do alerta.
+- Dispara eventos para cada alerta registrado individualmente, afim de possibilitar usá-los para disparar automações
  
 ![image](https://github.com/user-attachments/assets/4410fad4-1128-4b52-9052-1776ad5aece5)
 
@@ -78,6 +79,34 @@ type: entities
 entities:
   - entity: sensor.inmet_alertas
     name: Total de Alertas
+```
+
+*Automação - Notificações*
+
+Você também pode adicionar notificações, assim que alertas forem emitidos:
+```markdown
+alias: Notificação - Alertas críticos do INMET
+description: Notificar em casos de alertas de Perigo ou Grande Perigo
+triggers:
+  - event_type: inmet_alerta_novo
+    trigger: event
+conditions:
+  - condition: template
+    value_template: |
+      {{ trigger.event.data.severidade in ["Perigo", "Grande Perigo"] }}
+actions:
+  - action: notify.notify
+    data:
+      title: INMET - {{ trigger.event.data.status }}
+      message: |
+        {{ trigger.event.data.descricao }}
+  - action: notify.persistent_notification
+    metadata: {}
+    data:
+      title: INMET - {{ trigger.event.data.status }}
+      message: |
+        {{ trigger.event.data.descricao }}
+mode: single
 ```
 
 ## Como Funciona

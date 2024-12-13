@@ -2,6 +2,7 @@ import re
 import logging
 from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
+from homeassistant.core import EventOrigin
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -19,6 +20,7 @@ class INMETAlertasSensor(Entity):
         self._name = "INMET Alertas"
         self._state = None
         self._alerts = []
+        self._previous_alert_ids = set()  # IDs dos alertas processados anteriormente
         self.hass = hass
 
     @property
@@ -50,7 +52,6 @@ class INMETAlertasSensor(Entity):
 
             data = await response.text()
 
-        # Verifica se a resposta contém algo
         if not data.strip():
             self._alerts = []
             self._state = 0
@@ -70,11 +71,13 @@ class INMETAlertasSensor(Entity):
         items = channel.findall("item") if channel is not None else []
 
         alerts = []
-        now = datetime.now(timezone.utc)  # Sempre consciente do fuso horário
+        new_alert_ids = set()  # IDs de alertas processados nesta execução
+        now = datetime.now(timezone.utc)
 
         for item in items:
             try:
                 # Extrair informações básicas
+                alert_id = item.find("guid").text
                 title = item.find("title").text
                 description = item.find("description").text
                 pub_date = item.find("pubDate").text
@@ -95,10 +98,10 @@ class INMETAlertasSensor(Entity):
                 # Garantir que 'severidade' tenha um valor válido
                 if severidade_extra:
                     severidade = severidade_extra.group(1)
-                elif severidade:  # Caso o campo 'severidade' do description já tenha sido extraído
+                elif severidade:
                     severidade = severidade.group(1)
                 else:
-                    severidade = "Desconhecida"  # Valor padrão caso não seja encontrado
+                    severidade = "Desconhecida"
 
                 # Converter datas de início e fim para timezone-aware
                 inicio_dt = (
@@ -113,6 +116,7 @@ class INMETAlertasSensor(Entity):
                 # Verificar validade do alerta
                 if inicio_dt and (fim_dt is None or now <= fim_dt):
                     alert = {
+                        "id": alert_id,
                         "status": alerta_nome,
                         "evento": evento.group(1) if evento else "Desconhecido",
                         "severidade": severidade,
@@ -122,6 +126,23 @@ class INMETAlertasSensor(Entity):
                         "area": area.group(1) if area else "Indefinido",
                     }
                     alerts.append(alert)
+                    new_alert_ids.add(alert_id)
+
+                    # Disparar evento para novos alertas
+                    if alert_id not in self._previous_alert_ids:
+                        self.hass.bus.async_fire(
+                            "inmet_alerta_novo",
+                            {
+                                "id": alert["id"],
+                                "status": alert["status"],
+                                "evento": alert["evento"],
+                                "severidade": alert["severidade"],
+                                "descricao": alert["descricao"],
+                                "inicio": alert["inicio"],
+                                "fim": alert["fim"],
+                                "area": alert["area"],
+                            },
+                        )
 
             except Exception as e:
                 _LOGGER.error(f"Erro ao processar um alerta: {e}")
@@ -129,3 +150,4 @@ class INMETAlertasSensor(Entity):
 
         self._alerts = alerts
         self._state = len(alerts)
+        self._previous_alert_ids = new_alert_ids
