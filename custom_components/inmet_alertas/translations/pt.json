@@ -1,0 +1,35 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurar INMET Alertas",
+        "description": "Configure os alertas meteorológicos do INMET para o seu estado",
+        "data": {
+          "estado": "Estado",
+          "notificacoes_perigo": "Ativar notificações para alertas de perigo",
+          "update_interval": "Intervalo de atualização (minutos)"
+        }
+      }
+    },
+    "error": {
+      "invalid_state": "Estado inválido. Selecione um estado brasileiro válido.",
+      "cannot_connect": "Não foi possível conectar ao servidor do INMET",
+      "unknown": "Erro desconhecido"
+    },
+    "abort": {
+      "already_configured": "Esta integração já está configurada"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opções do INMET Alertas",
+        "description": "Configure as opções avançadas",
+        "data": {
+          "notificacoes_perigo": "Ativar notificações para alertas de perigo",
+          "update_interval": "Intervalo de atualização (minutos)"
+        }
+      }
+    }
+  }
+}

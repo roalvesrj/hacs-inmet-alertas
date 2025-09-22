@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure INMET Weather Alerts",
+        "description": "Configure weather alerts from Brazil's National Institute of Meteorology for your state",
+        "data": {
+          "estado": "State",
+          "notificacoes_perigo": "Enable notifications for danger alerts",
+          "update_interval": "Update interval (minutes)"
+        }
+      }
+    },
+    "error": {
+      "invalid_state": "Invalid state. Please select a valid Brazilian state.",
+      "cannot_connect": "Unable to connect to INMET server",
+      "unknown": "Unknown error"
+    },
+    "abort": {
+      "already_configured": "This integration is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "INMET Alerts Options",
+        "description": "Configure advanced options",
+        "data": {
+          "notificacoes_perigo": "Enable notifications for danger alerts",
+          "update_interval": "Update interval (minutes)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "inmet_alertas": {
+        "name": "INMET Weather Alerts",
+        "state": {
+          "nenhum": "No active alerts",
+          "multiplos": "{count} active alerts"
+        }
+      },
+      "inmet_alertas_count": {
+        "name": "INMET Alerts Count"
+      }
+    }
+  },
+  "services": {
+    "atualizar_alertas": {
+      "name": "Update Alerts",
+      "description": "Force update of weather alerts"
+    }
+  }
+}

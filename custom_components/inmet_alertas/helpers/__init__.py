@@ -1,0 +1,1 @@
+"""Módulos auxiliares para a integração INMET Alertas."""

@@ -1,0 +1,22 @@
+{
+  "entity": {
+    "sensor": {
+      "inmet_alertas": {
+        "name": "Alertas Meteorológicos INMET",
+        "state": {
+          "nenhum": "Nenhum alerta ativo",
+          "multiplos": "{count} alertas ativos"
+        }
+      },
+      "inmet_alertas_count": {
+        "name": "Quantidade de Alertas INMET"
+      }
+    }
+  },
+  "services": {
+    "atualizar_alertas": {
+      "name": "Atualizar Alertas",
+      "description": "Força a atualização dos alertas meteorológicos"
+    }
+  }
+}
