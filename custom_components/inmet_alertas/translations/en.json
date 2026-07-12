@@ -39,10 +39,76 @@
         "state": {
           "nenhum": "No active alerts",
           "multiplos": "{count} active alerts"
+        },
+        "state_attributes": {
+          "total_alertas": {
+            "name": "Total Alerts"
+          },
+          "alertas": {
+            "name": "Alerts"
+          },
+          "alertas_por_severidade": {
+            "name": "Alerts by Severity"
+          },
+          "severidade_maxima": {
+            "name": "Maximum Severity"
+          },
+          "municipios_unicos": {
+            "name": "Unique Municipalities"
+          },
+          "municipios_afetados": {
+            "name": "Affected Municipalities"
+          },
+          "estado": {
+            "name": "State"
+          },
+          "ultima_atualizacao": {
+            "name": "Last Update"
+          }
         }
       },
       "inmet_alertas_count": {
-        "name": "INMET Alerts Count"
+        "name": "INMET Alerts Count",
+        "state_attributes": {
+          "estado": {
+            "name": "State"
+          },
+          "ultima_atualizacao": {
+            "name": "Last Update"
+          }
+        }
+      },
+      "inmet_alertas_mapa": {
+        "name": "INMET Alerts Map",
+        "state_attributes": {
+          "estado": {
+            "name": "State"
+          },
+          "poligonos": {
+            "name": "Polygons"
+          },
+          "area_total_afetada_km2": {
+            "name": "Total Affected Area (km²)"
+          },
+          "centro_geografico": {
+            "name": "Geographic Center"
+          },
+          "bounding_box": {
+            "name": "Bounding Box"
+          },
+          "zoom_recomendado": {
+            "name": "Recommended Zoom"
+          },
+          "camadas_por_severidade": {
+            "name": "Layers by Severity"
+          },
+          "total_alertas_com_geo": {
+            "name": "Total Alerts with Geographic Data"
+          },
+          "ultima_atualizacao": {
+            "name": "Last Update"
+          }
+        }
       }
     }
   },

@@ -13,8 +13,9 @@ from homeassistant.core import HomeAssistant
 
 from ..const import (
     URL_RSS, URL_BASE_ALERTA, HTTP_TIMEOUT, REQUEST_HEADERS,
-    SEVERIDADE_CAP_MAP, EVENTO_ICONES
+    SEVERIDADE_CAP_MAP, EVENTO_ICONES, CORES_INMET_MAPA, COLORISK_TO_SEVERIDADE
 )
+from .geo_processor import GeoProcessor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -191,14 +192,72 @@ class RSSParser:
                     if desc_elem is not None and desc_elem.text:
                         areas_desc.append(desc_elem.text)
                     
-                    # Buscar polígonos
-                    polygon_elem = area.find('cap:polygon', ns) or area.find('polygon')
+                    # Buscar polígonos - tentar diferentes variações
+                    polygon_elem = (area.find('cap:polygon', ns) or 
+                                  area.find('polygon') or 
+                                  area.find('.//polygon'))
+                    
                     if polygon_elem is not None and polygon_elem.text:
-                        poligonos.append(polygon_elem.text)
+                        polygon_text = polygon_elem.text.strip()
+                        if polygon_text:
+                            poligonos.append(polygon_text)
+                            _LOGGER.debug(f"Polígono extraído: {polygon_text[:100]}...")
                 
                 cap_data['areas'] = areas_desc
                 cap_data['area_desc'] = '; '.join(areas_desc)
                 cap_data['polygons'] = poligonos
+                
+                # Processar dados geográficos se existirem polígonos
+                if poligonos:
+                    _LOGGER.info(f"Processando {len(poligonos)} polígonos encontrados")
+                    dados_geo = []
+                    area_total = 0.0
+                    
+                    for i, polygon_text in enumerate(poligonos):
+                        resultado_geo = GeoProcessor.processar_poligono_completo(
+                            polygon_text, 
+                            f"alerta_{i}"
+                        )
+                        if resultado_geo:
+                            dados_geo.append(resultado_geo)
+                            area_total += resultado_geo.get('area_km2', 0)
+                    
+                    # Combinar dados geográficos
+                    if dados_geo:
+                        dados_combinados = GeoProcessor.combinar_poligonos_estado(dados_geo)
+                        
+                        cap_data['dados_geograficos'] = {
+                            'poligonos_individuais': dados_geo,
+                            'area_total_km2': dados_combinados['area_total_km2'],
+                            'centro_geografico': dados_combinados['centro_estado'],
+                            'bounding_box': dados_combinados['bounding_box_estado'],
+                            'zoom_recomendado': dados_combinados['zoom_estado'],
+                            'total_poligonos': len(dados_geo)
+                        }
+                        
+                        _LOGGER.info(f"Dados geográficos processados: {len(dados_geo)} polígonos, "
+                                   f"{dados_combinados['area_total_km2']} km²")
+                    else:
+                        _LOGGER.warning(f"Nenhum polígono válido foi processado dos {len(poligonos)} encontrados")
+                else:
+                    _LOGGER.debug("Nenhum polígono encontrado no CAP")
+                
+                # Processar cor do risco se disponível
+                cor_risco = cap_data.get('color_risk', '')
+                if cor_risco:
+                    # Mapear cor para severidade se possível
+                    if cor_risco in COLORISK_TO_SEVERIDADE:
+                        cap_data['severidade_por_cor'] = COLORISK_TO_SEVERIDADE[cor_risco]
+                    
+                    # Garantir que a cor está no formato correto
+                    if not cor_risco.startswith('#'):
+                        cor_risco = f"#{cor_risco}"
+                    cap_data['color_risk'] = cor_risco
+                
+                # Se não temos cor específica, usar cor padrão da severidade
+                if not cap_data.get('color_risk'):
+                    severidade = cap_data.get('severidade_inmet', '')
+                    cap_data['color_risk'] = CORES_INMET_MAPA.get(severidade, '#808080')
                 
                 # Adicionar ícone baseado no evento
                 evento = cap_data.get('event', '')
