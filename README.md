@@ -1,6 +1,6 @@
 # INMET Alertas - Integração Home Assistant
 
-![INMET Logo](https://www.gov.br/inmet/pt-br/central-de-conteudos/logomarca/logo-inmet.png/@@images/image.png)
+<img src="custom_components/inmet_alertas/images/inmetlogo.jpg" alt="INMET Logo" width="200"/>
 
 [![GitHub release](https://img.shields.io/github/release/roalvesrj/hacs-inmet-alertas.svg)](https://github.com/roalvesrj/hacs-inmet-alertas/releases)
 [![GitHub issues](https://img.shields.io/github/issues/roalvesrj/hacs-inmet-alertas.svg)](https://github.com/roalvesrj/hacs-inmet-alertas/issues)
@@ -19,6 +19,9 @@ Uma integração profissional para Home Assistant que monitora alertas meteorol�
 - **Múltiplos sensores**:
   - Sensor principal com detalhes dos alertas ativos
   - Sensor de contagem de alertas
+  - Sensor de mapa geográfico com polígonos e áreas afetadas
+- **Processamento geográfico** - áreas em km², centro geográfico, zoom inteligente
+- **Plugin Leaflet/Mapa** para visualização de polígonos reais no mapa
 - **Eventos personalizados** para automações avançadas
 - **Interface totalmente em português brasileiro**
 
@@ -33,7 +36,8 @@ inmet_alertas/
 ├── 📁 helpers/           # Módulos auxiliares especializados
 │   ├── 📄 rss_parser.py          # Parser RSS/CAP otimizado
 │   ├── 📄 data_processor.py      # Processamento de dados
-│   └── 📄 notification_manager.py # Gerenciador de notificações
+│   ├── 📄 notification_manager.py # Gerenciador de notificações
+│   └── 📄 geo_processor.py       # Processamento geográfico de polígonos
 ├── 📁 docs/             # Documentação detalhada
 ├── 📁 translations/     # Suporte multilíngue (PT/EN)
 └── 📁 tests/           # Suíte de testes automatizados
@@ -63,10 +67,10 @@ inmet_alertas/
 ### 📖 Documentação Completa
 
 Para instruções detalhadas, consulte:
-- 📥 **[Guia de Instalação](docs/INSTALACAO.md)** - Instruções passo-a-passo
-- ⚙️ **[Guia de Configuração](docs/CONFIGURACAO.md)** - Configuração completa
-- 🎨 **[Exemplos de Interface](docs/EXEMPLOS.md)** - Cartões e automações
-- 🔧 **[Solução de Problemas](docs/TROUBLESHOOTING.md)** - Resolução de issues
+- 📥 **[Guia de Instalação](custom_components/inmet_alertas/docs/INSTALACAO.md)** - Instruções passo-a-passo
+- ⚙️ **[Guia de Configuração](custom_components/inmet_alertas/docs/CONFIGURACAO.md)** - Configuração completa
+- 🎨 **[Exemplos de Automações](custom_components/inmet_alertas/examples/automations.md)** - Exemplos de automações
+- 🔧 **[Solução de Problemas](custom_components/inmet_alertas/docs/CONFIGURACAO.md#🆘-resolução-de-problemas)** - Resolução de issues
 
 ## ⚙️ Configuração
 
@@ -111,6 +115,17 @@ Você pode configurar a integração para monitorar diferentes estados simultane
 - **Estado**: Número de alertas ativos
 - **Unidade**: alertas
 
+### `sensor.inmet_alertas_mapa_[ESTADO]`
+- **Estado**: Número de polígonos geográficos ativos
+- **Unidade**: polígonos
+- **Atributos**:
+  - `area_total_afetada_km2`: Área total coberta pelos alertas em km²
+  - `centro_geografico`: Coordenadas do centro das áreas afetadas
+  - `zoom_recomendado`: Nível de zoom ideal para visualização no mapa
+  - `camadas_por_severidade`: Polígonos organizados por severidade com cores oficiais
+  - `total_alertas_com_geo`: Quantos alertas possuem dados geográficos
+  - `poligonos`: Lista detalhada de todos os polígonos
+
 ## 🔔 Notificações
 
 A integração cria automaticamente notificações persistentes para alertas de alta severidade:
@@ -133,6 +148,12 @@ estado: "SP"
 inicio: "21/09/2025 10:00"
 fim: "21/09/2025 18:00"
 ```
+
+### `inmet_alerta_perigoso`
+Disparado especificamente para alertas de severidade **Perigo** ou **Grande Perigo**. Contém os mesmos dados do `inmet_novo_alerta`.
+
+### `inmet_alerta_expirado`
+Disparado quando um alerta existente é removido por expiração.
 
 ## 🤖 Automações
 
@@ -440,6 +461,46 @@ entities:
     icon: mdi:weather-cloudy-alert
 ```
 
+## 🗺️ Mapas Geográficos dos Alertas
+
+A partir da versão 1.12.0, cada estado configurado ganha automaticamente um sensor de mapa:
+- `sensor.inmet_alertas_mapa_[estado]` (ex: `sensor.inmet_alertas_mapa_go`)
+
+### Cartão de Mapa Básico
+
+```yaml
+type: map
+title: Alertas Meteorológicos
+entities:
+  - sensor.inmet_alertas_mapa_go  # Altere para seu estado
+default_zoom: 8
+aspect_ratio: "16:9"
+```
+
+### Mapa com Polígonos Reais (ha-map-card)
+
+Para visualizar os polígonos reais dos alertas, instale o **ha-map-card** via HACS e use o plugin incluso:
+
+```yaml
+type: custom:map-card
+title: Alertas INMET com Polígonos
+zoom: 6
+card_size: 8
+x: -15.7998  # Latitude do centro
+y: -47.8645  # Longitude do centro
+plugins:
+  - name: inmet_polygons
+    url: /hacsfiles/inmet_alertas/plugin_inmet_polygons.js
+    options:
+      states: ["goias", "sao_paulo"]  # Estados em formato snake_case
+      fillOpacity: 0.3
+      strokeOpacity: 0.8
+```
+
+O plugin está disponível automaticamente em `/hacsfiles/inmet_alertas/plugin_inmet_polygons.js` após a instalação via HACS.
+
+> **Nota**: O sensor de mapa fornece os atributos `area_total_afetada_km2`, `centro_geografico`, `zoom_recomendado` e `camadas_por_severidade` para uso em automações e cards personalizados.
+
 ## 🔧 Solução de Problemas
 
 ### Alertas não aparecem
@@ -473,10 +534,17 @@ Este projeto segue o [Versionamento Semântico](https://semver.org/):
 - **MINOR**: Novas funcionalidades compatíveis
 - **PATCH**: Correções de bugs compatíveis
 
-### 🆕 Changelog v1.7.0
+### 🆕 Changelog v1.12.0
 
-#### 🎉 Novidades
-- **Arquitetura profissional** com módulos especializados
+#### 🗺️ Fase Geográfica (v2.0+)
+- **Sensor de Mapa** `sensor.inmet_alertas_mapa_[estado]` com dados geográficos
+- **Processamento de Polígonos** - extração e cálculo de áreas afetadas em km²
+- **Zoom Inteligente** - cálculo automático do zoom ideal para visualização
+- **Centro Geográfico** - determinação automática do centro das áreas afetadas
+- **Plugin Leaflet** - plugin `plugin_inmet_polygons.js` para ha-map-card
+
+#### 🎉 Melhorias Anteriores
+- **Arquitetura profissional** com módulos especializados (GeoProcessor, RSSParser, etc.)
 - **Documentação expandida** em pasta dedicada
 - **Suporte multilíngue** (Português/Inglês)
 - **Testes organizados** em estrutura própria
@@ -484,22 +552,17 @@ Este projeto segue o [Versionamento Semântico](https://semver.org/):
 
 #### 🐛 Correções
 - **Notificações duplicadas** entre estados resolvidas
-- **Automações malformadas** corrigidas no README
+- **Rate limiting** tratado com fila de retry inteligente
+- **Persistência de alertas** entre ciclos de atualização
 - **Limpeza automática** de notificações expiradas
-- **Terminologia de severidade** padronizada (Perigo, Grande Perigo)
-
-#### 🔧 Melhorias Técnicas
-- **RSSParser** otimizado para melhor performance
-- **NotificationManager** com gerenciamento inteligente
-- **DataProcessor** com validações robustas
-- **Logs estruturados** para troubleshooting
 
 ## 📊 Estatísticas do Projeto
 
-- **+1000 linhas** de código Python
-- **+20 arquivos** organizados em estrutura modular
+- **+3000 linhas** de código Python
+- **+30 arquivos** organizados em estrutura modular
 - **100% em português** (documentação e interface)
 - **Compatibilidade** com Home Assistant 2023.1+
+- **Plugin de mapa** para visualização de polígonos geográficos
 - **Suporte ativo** da comunidade brasileira
 
 ## 🤝 Contribuindo
