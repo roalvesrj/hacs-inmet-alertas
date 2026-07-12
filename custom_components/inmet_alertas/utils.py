@@ -3,41 +3,36 @@ from datetime import datetime
 from typing import Dict, List, Any
 import logging
 
+from homeassistant.util import dt as dt_util
+from .const import MICRORREGIOES_ESTADOS, SEVERIDADE_PRIORIDADES
+
 _LOGGER = logging.getLogger(__name__)
-
-# Mapeamento de severidades CAP para INMET
-SEVERIDADE_CAP_MAP = {
-    "Minor": "Perigo Potencial",
-    "Moderate": "Perigo", 
-    "Severe": "Perigo",
-    "Extreme": "Grande Perigo"
-}
-
-# Cores/ícones por severidade
-SEVERIDADE_CORES = {
-    "Perigo Potencial": "🟡",
-    "Perigo": "🟠",
-    "Grande Perigo": "🔴",
-    "Desconhecida": "ℹ️"
-}
 
 
 def format_datetime(iso_datetime: str) -> str:
-    """Formatar datetime ISO para formato brasileiro."""
+    """Formatar datetime ISO para formato brasileiro usando timezone local."""
     if not iso_datetime:
         return ""
     
     try:
-        # Parse ISO datetime
-        dt = datetime.fromisoformat(iso_datetime.replace('Z', '+00:00'))
-        # Formato brasileiro
-        return dt.strftime("%d/%m/%Y %H:%M")
+        # Parse ISO datetime e converter para timezone local
+        dt = dt_util.parse_datetime(iso_datetime)
+        if dt:
+            # Converter para timezone local do HA
+            dt_local = dt_util.as_local(dt)
+            # Formato brasileiro
+            return dt_local.strftime("%d/%m/%Y %H:%M")
+        else:
+            return iso_datetime
     except Exception:
         return iso_datetime
 
 
-def is_alert_active(cap_data: Dict[str, Any], now: datetime) -> bool:
+def is_alert_active(cap_data: Dict[str, Any], now: datetime = None) -> bool:
     """Verificar se o alerta está ativo no momento atual."""
+    if now is None:
+        now = dt_util.now()
+    
     inicio_iso = cap_data.get('onset', '')
     fim_iso = cap_data.get('expires', '')
     
@@ -45,18 +40,27 @@ def is_alert_active(cap_data: Dict[str, Any], now: datetime) -> bool:
         return True  # Assume ativo se não há data
     
     try:
-        inicio = datetime.fromisoformat(inicio_iso.replace('Z', '+00:00')).replace(tzinfo=None)
-        fim = datetime.fromisoformat(fim_iso.replace('Z', '+00:00')).replace(tzinfo=None)
-        now_naive = now.replace(tzinfo=None)
+        # Converter datas ISO para timezone local do HA
+        inicio = dt_util.parse_datetime(inicio_iso)
+        fim = dt_util.parse_datetime(fim_iso)
         
-        return inicio <= now_naive <= fim
+        if inicio and fim:
+            # Comparar usando timezone local
+            return inicio <= now <= fim
+        else:
+            _LOGGER.warning(f"Erro ao processar datas: inicio={inicio_iso}, fim={fim_iso}")
+            return True
+            
     except Exception as e:
         _LOGGER.warning(f"Erro ao verificar período do alerta: {e}")
         return True  # Assume ativo em caso de erro
 
 
 def check_state_affected(cap_data: Dict[str, Any], estado: str) -> bool:
-    """Verificar se o alerta afeta o estado especificado."""
+    """Verificar se o alerta afeta o estado especificado.
+    
+    Verifica tanto microrregiões INMET quanto municípios individuais.
+    """
     if not estado:
         return True
         
@@ -64,31 +68,41 @@ def check_state_affected(cap_data: Dict[str, Any], estado: str) -> bool:
     if not municipios:
         return False
     
-    # Buscar padrão " - UF " nos municípios
+    # Método 1: Verificar microrregiões INMET
+    # Dividir o texto por vírgulas para obter cada área/microrregião
+    areas = [area.strip() for area in municipios.split(',')]
+    
+    for area in areas:
+        # Verificar se a área/microrregião pertence ao estado
+        if area in MICRORREGIOES_ESTADOS:
+            if MICRORREGIOES_ESTADOS[area] == estado:
+                return True
+    
+    # Método 2: Verificar municípios individuais com padrão " - UF "
     estado_tag = f" - {estado} "
-    return estado_tag in municipios
+    if estado_tag in municipios:
+        return True
+    
+    return False
 
 
 def filter_state_municipalities(municipios_text: str, estado: str) -> List[str]:
-    """Filtrar apenas os municípios do estado especificado."""
+    """Filtrar municípios e microrregiões do estado especificado."""
     if not municipios_text:
         return []
     
-    municipios = municipios_text.split(", ")
-    estado_tag = f" - {estado} "
+    resultado = []
+    areas = [area.strip() for area in municipios_text.split(",")]
     
-    return [m.strip() for m in municipios if estado_tag in m]
-
-
-def get_severidade_prioridade(severidade: str) -> int:
-    """Obter prioridade numérica da severidade."""
-    prioridades = {
-        "Grande Perigo": 3, 
-        "Perigo": 2, 
-        "Perigo Potencial": 1,
-        "Desconhecida": 0
-    }
-    return prioridades.get(severidade, 0)
+    for area in areas:
+        # Verificar se é uma microrregião do estado
+        if area in MICRORREGIOES_ESTADOS and MICRORREGIOES_ESTADOS[area] == estado:
+            resultado.append(area)
+        # Verificar se é um município individual do estado
+        elif f" - {estado} " in area:
+            resultado.append(area)
+    
+    return resultado
 
 
 def calculate_summary(alerts: List[Dict[str, Any]], estado: str) -> Dict[str, Any]:
@@ -101,24 +115,21 @@ def calculate_summary(alerts: List[Dict[str, Any]], estado: str) -> Dict[str, An
             "municipios_unicos": 0,
             "estado": estado,
         }
-    
-    # Todos os alertas passados são ativos
+
     severidade_maxima = None
     max_prioridade = 0
     municipios_set = set()
-    
+
     for alert in alerts:
-        # Verificar severidade máxima
         sev = alert.get('severidade', '')
-        prioridade = get_severidade_prioridade(sev)
+        prioridade = SEVERIDADE_PRIORIDADES.get(sev, 0)
         if prioridade > max_prioridade:
             max_prioridade = prioridade
             severidade_maxima = sev
-        
-        # Coletar municípios únicos
+
         for municipio in alert.get('municipios_estado', []):
             municipios_set.add(municipio)
-    
+
     return {
         "total_alertas": len(alerts),
         "alertas_ativos": len(alerts),
