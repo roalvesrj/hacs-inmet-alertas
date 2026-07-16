@@ -1,6 +1,8 @@
 {
   "name": "INMET Alertas",
-  "country": "BR",
-  "homeassistant": "2023.1.0",
-  "persistent_directory": "www"
+  "zip_release": true,
+  "filename": "inmet_alertas.zip",
+  "homeassistant": "2024.1.0",
+  "hacs": "1.32.0",
+  "country": "BR"
 }
