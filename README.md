@@ -1,6 +1,6 @@
 # INMET Alertas - Integração Home Assistant
 
-<img src="custom_components/inmet_alertas/images/inmetlogo.jpg" alt="INMET Logo" width="200"/>
+<img src="custom_components/inmet_alertas/brand/icon.png" alt="INMET Logo" width="200"/>
 
 [![GitHub release](https://img.shields.io/github/release/roalvesrj/hacs-inmet-alertas.svg)](https://github.com/roalvesrj/hacs-inmet-alertas/releases)
 [![GitHub issues](https://img.shields.io/github/issues/roalvesrj/hacs-inmet-alertas.svg)](https://github.com/roalvesrj/hacs-inmet-alertas/issues)

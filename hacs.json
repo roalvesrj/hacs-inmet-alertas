@@ -1,0 +1,6 @@
+{
+  "name": "INMET Alertas",
+  "country": "BR",
+  "homeassistant": "2023.1.0",
+  "persistent_directory": "www"
+}
