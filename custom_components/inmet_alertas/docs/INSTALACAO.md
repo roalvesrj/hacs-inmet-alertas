@@ -14,7 +14,7 @@
 2. Clique em **"Integrações"**
 3. Clique no menu **⋮** (três pontos) no canto superior direito
 4. Selecione **"Repositórios Personalizados"**
-5. Adicione a URL: `https://github.com/roalvesrj/hacs-inmet-alertas`
+5. Adicione a URL: `https://github.com/roalvesrj/ha-inmet-alertas`
 6. Selecione a categoria **"Integração"**
 7. Clique em **"Adicionar"**
 
@@ -29,7 +29,7 @@
 
 ### 1. Download dos Arquivos
 
-1. Baixe a versão mais recente do [repositório GitHub](https://github.com/roalvesrj/hacs-inmet-alertas)
+1. Baixe a versão mais recente do [repositório GitHub](https://github.com/roalvesrj/ha-inmet-alertas)
 2. Extraia o arquivo ZIP
 
 ### 2. Copiar Arquivos
@@ -82,6 +82,6 @@
 
 ## 📞 Suporte
 
-- **Issues GitHub**: [Reportar problemas](https://github.com/roalvesrj/hacs-inmet-alertas/issues)
+- **Issues GitHub**: [Reportar problemas](https://github.com/roalvesrj/ha-inmet-alertas/issues)
 - **Documentação**: Consulte os outros arquivos da pasta `docs/`
 - **Comunidade**: Fóruns do Home Assistant Brasil

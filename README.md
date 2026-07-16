@@ -2,9 +2,9 @@
 
 <img src="custom_components/inmet_alertas/brand/icon.png" alt="INMET Logo" width="200"/>
 
-[![GitHub release](https://img.shields.io/github/release/roalvesrj/hacs-inmet-alertas.svg)](https://github.com/roalvesrj/hacs-inmet-alertas/releases)
-[![GitHub issues](https://img.shields.io/github/issues/roalvesrj/hacs-inmet-alertas.svg)](https://github.com/roalvesrj/hacs-inmet-alertas/issues)
-[![License](https://img.shields.io/github/license/roalvesrj/hacs-inmet-alertas.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/release/roalvesrj/ha-inmet-alertas.svg)](https://github.com/roalvesrj/ha-inmet-alertas/releases)
+[![GitHub issues](https://img.shields.io/github/issues/roalvesrj/ha-inmet-alertas.svg)](https://github.com/roalvesrj/ha-inmet-alertas/issues)
+[![License](https://img.shields.io/github/license/roalvesrj/ha-inmet-alertas.svg)](LICENSE)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
 
 Uma integração profissional para Home Assistant que monitora alertas meteorológicos do Instituto Nacional de Meteorologia (INMET) do Brasil.
@@ -59,12 +59,12 @@ inmet_alertas/
 
 ### 🚀 Instalação Rápida via HACS
 
-[![Abrir no Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?category=integration&repository=roalvesrj%2Fhacs-inmet-alertas)
+[![Abrir no Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?category=integration&repository=roalvesrj%2Fha-inmet-alertas)
 
 **OU**
 
 1. Abra o **HACS** → **Integrações** → **Menu ⋮** → **Repositórios Personalizados**
-2. Adicione: `https://github.com/roalvesrj/hacs-inmet-alertas`
+2. Adicione: `https://github.com/roalvesrj/ha-inmet-alertas`
 3. Procure por **"INMET Alertas"** e instale
 4. **Reinicie o Home Assistant**
 
