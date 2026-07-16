@@ -5,7 +5,7 @@
         "name": "Alertas Meteorológicos INMET",
         "state": {
           "nenhum": "Nenhum alerta ativo",
-          "multiplos": "{count} alertas ativos"
+          "multiplos": "Múltiplos alertas ativos"
         }
       },
       "inmet_alertas_count": {

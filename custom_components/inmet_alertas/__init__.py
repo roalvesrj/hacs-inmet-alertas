@@ -1,6 +1,7 @@
 """Integração INMET Alertas para Home Assistant."""
 import logging
 import os
+import voluptuous as cv
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -8,6 +9,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "inmet_alertas"
 PLATFORMS = [Platform.SENSOR]
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Configuração inicial da integração."""

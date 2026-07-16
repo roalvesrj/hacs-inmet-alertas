@@ -38,7 +38,7 @@
         "name": "INMET Weather Alerts",
         "state": {
           "nenhum": "No active alerts",
-          "multiplos": "{count} active alerts"
+          "multiplos": "Multiple active alerts"
         },
         "state_attributes": {
           "total_alertas": {

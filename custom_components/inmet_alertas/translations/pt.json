@@ -38,7 +38,7 @@
         "name": "INMET Alertas",
         "state": {
           "nenhum": "Nenhum alerta ativo",
-          "multiplos": "{count} alertas ativos"
+          "multiplos": "Múltiplos alertas ativos"
         },
         "state_attributes": {
           "total_alertas": {
