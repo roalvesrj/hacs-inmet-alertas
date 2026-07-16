@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    if: github.event.head_commit.message != 'Initial commit'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Buscar versão do manifest.json
+        id: version
+        run: |
+          echo "version=v$(jq -r '.version' custom_components/inmet_alertas/manifest.json)" >> $GITHUB_OUTPUT
+
+      - name: Verificar se tag já existe
+        id: tag_exists
+        run: |
+          if git rev-parse "${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extrair changelog da versão
+        id: changelog
+        if: steps.tag_exists.outputs.exists == 'false'
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          output=$(awk -v ver="$version" '
+            $0 ~ "^## " ver {
+              found = 1
+              next
+            }
+            found && /^## v/ { exit }
+            found { print }
+          ' CHANGELOG.md)
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Criar pacote .zip
+        if: steps.tag_exists.outputs.exists == 'false'
+        run: |
+          cd custom_components/inmet_alertas
+          zip -r ../../inmet_alertas.zip . -x "tests/*" -x "*.pyc" -x "__pycache__/*" -x ".gitignore"
+          cd ../..
+
+      - name: Criar Release no GitHub
+        if: steps.tag_exists.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
+          body: ${{ steps.changelog.outputs.notes }}
+          files: inmet_alertas.zip
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
