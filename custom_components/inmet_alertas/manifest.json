@@ -17,6 +17,5 @@
   ],
   "after_dependencies": [
     "persistent_notification"
-  ],
-  "frontend": false
+  ]
 }
