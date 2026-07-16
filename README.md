@@ -59,6 +59,10 @@ inmet_alertas/
 
 ### 🚀 Instalação Rápida via HACS
 
+[![Abrir no Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?category=integration&repository=roalvesrj%2Fhacs-inmet-alertas)
+
+**OU**
+
 1. Abra o **HACS** → **Integrações** → **Menu ⋮** → **Repositórios Personalizados**
 2. Adicione: `https://github.com/roalvesrj/hacs-inmet-alertas`
 3. Procure por **"INMET Alertas"** e instale
