@@ -1,20 +1,20 @@
 {
   "domain": "inmet_alertas",
   "name": "INMET Alertas",
-  "iot_class": "cloud_polling",
-  "version": "1.13.0",
-  "documentation": "https://github.com/roalvesrj/hacs-inmet-alertas",
-  "issue_tracker": "https://github.com/roalvesrj/hacs-inmet-alertas/issues",
-  "config_flow": true,
-  "dependencies": [],
+  "after_dependencies": [
+    "persistent_notification"
+  ],
   "codeowners": [
     "@roalvesrj"
   ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/roalvesrj/hacs-inmet-alertas",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/roalvesrj/hacs-inmet-alertas/issues",
   "requirements": [
     "aiohttp>=3.8.0",
     "feedparser>=6.0.0"
   ],
-  "after_dependencies": [
-    "persistent_notification"
-  ]
+  "version": "1.13.0"
 }
