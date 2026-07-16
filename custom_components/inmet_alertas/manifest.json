@@ -5,7 +5,6 @@
   "version": "1.13.0",
   "documentation": "https://github.com/roalvesrj/hacs-inmet-alertas",
   "issue_tracker": "https://github.com/roalvesrj/hacs-inmet-alertas/issues",
-  "icon": "mdi:weather-cloudy-alert",
   "config_flow": true,
   "dependencies": [],
   "codeowners": [
