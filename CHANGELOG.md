@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.13.1 - 17/07/2026
+
+### 🐛 Correções de Erros
+- Corrigido import incorreto em `__init__.py` que impedia a integração de carregar no Home Assistant (`voluptuous.as cv` → `homeassistant.helpers.config_validation as cv`)
+
 ## v1.13.0 - 16/07/2026
 
 ### ✨ Novos Recursos
