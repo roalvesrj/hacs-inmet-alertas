@@ -63,8 +63,8 @@ async def async_setup_entry(
 ) -> None:
     """Configurar sensor dos alertas INMET."""
     estado = config_entry.data.get("estado")
-    update_interval = config_entry.data.get("update_interval", 30)
-    notificacoes_perigo = config_entry.data.get("notificacoes_perigo", True)
+    update_interval = config_entry.options.get("update_interval", config_entry.data.get("update_interval", 30))
+    notificacoes_perigo = config_entry.options.get("notificacoes_perigo", config_entry.data.get("notificacoes_perigo", True))
     
     coordinator = INMETDataUpdateCoordinator(
         hass, estado, update_interval, notificacoes_perigo
@@ -88,6 +88,7 @@ async def async_setup_entry(
         INMETAlertasSensor(coordinator, config_entry),
         INMETAlertasCountSensor(coordinator, config_entry),
         INMETAlertasMapaSensor(coordinator, config_entry),
+        INMETAlertasDiagnosticoSensor(coordinator, config_entry),
     ])
 
 
@@ -101,6 +102,15 @@ class INMETDataUpdateCoordinator(DataUpdateCoordinator):
         self._alertas_persistentes = {}  # Dict[str, dict] - ID -> dados completos do alerta
         self._pending_caps = []  # Lista de CAPs para retry
         self._retry_count = {}
+        self._notified_rate_limited = False  # Flag para sinalizar listeners durante rate limiting
+        self._diagnostico = {
+            "ultimo_http_status": None,
+            "rate_limit_hits": 0,
+            "pending_caps": 0,
+            "ultimo_erro": None,
+            "total_alertas_api": 0,
+            "ciclo_atual": None,
+        }
         
         super().__init__(
             hass,
@@ -111,11 +121,14 @@ class INMETDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Buscar dados do INMET."""
+        self._diagnostico["ciclo_atual"] = dt_util.now().isoformat()
+        
         try:
             session = async_get_clientsession(self.hass)
             
             # 1. Buscar RSS principal (todos os alertas)
             async with session.get(URL_RSS, headers=DEFAULT_HEADERS, timeout=30) as response:
+                self._diagnostico["ultimo_http_status"] = response.status
                 if response.status != 200:
                     raise UpdateFailed(f"Erro ao acessar o feed RSS: {response.status}")
                 
@@ -130,6 +143,7 @@ class INMETDataUpdateCoordinator(DataUpdateCoordinator):
             
             # Verificar rate limiting (não é erro, é comportamento esperado)
             if "limite de requisições" in data.lower() or "rate limit" in data.lower():
+                self._diagnostico["rate_limit_hits"] += 1
                 _LOGGER.info("⏳ INMET aplicou rate limiting no RSS principal. Processando apenas CAPs pendentes...")
                 
                 # Mesmo com rate limiting no RSS, processar CAPs pendentes existentes
@@ -146,13 +160,18 @@ class INMETDataUpdateCoordinator(DataUpdateCoordinator):
                 # IMPORTANTE: Durante rate limiting, usar persistência para manter alertas existentes!
                 alertas_finais = await self._merge_alertas_com_persistencia(alerts, now)
                 
+                # Sinalizar para que listeners atualizem mesmo sem dados novos
+                self._notified_rate_limited = True
+                self._diagnostico["pending_caps"] = len(self._pending_caps)
+                
                 # Retornar dados (com alertas persistentes mantidos mesmo durante rate limiting)
                 return {
                     "alerts": alertas_finais,
                     "count": len(alertas_finais),
                     "estado": self.estado,
                     "last_update": now.isoformat(),
-                    "rate_limited": True  # Indicador para logs
+                    "rate_limited": True,  # Indicador para logs
+                    "diagnostico": self._diagnostico.copy(),
                 }
             
             if not data.strip().startswith('<?xml') and not data.strip().startswith('<rss'):
@@ -177,13 +196,14 @@ class INMETDataUpdateCoordinator(DataUpdateCoordinator):
                     break
             
             _LOGGER.debug(f"Processando {len(items)} alertas do RSS principal")
+            self._diagnostico["total_alertas_api"] = len(items)
 
-            # 2. Processar cada alerta individualmente (máximo 20 por ciclo)
+            # 2. Processar cada alerta individualmente (máximo 50 por ciclo)
             alerts = []
             new_alert_ids = set()
             now = dt_util.now()
             processed_count = 0
-            max_caps_per_cycle = 20
+            max_caps_per_cycle = 50
 
             # Primeiro processar CAPs pendentes de tentativas anteriores
             if self._pending_caps:
@@ -227,12 +247,14 @@ class INMETDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.info(f"  - Novos do scan atual: {len(alerts)}")
             _LOGGER.info(f"  - Mantidos de scans anteriores: {len(alertas_finais) - len(alerts)}")
             _LOGGER.info(f"CAPs pendentes para próxima tentativa: {len(self._pending_caps)}")
+            self._diagnostico["pending_caps"] = len(self._pending_caps)
             
             return {
                 "alerts": alertas_finais,
                 "count": len(alertas_finais),
                 "estado": self.estado,
                 "last_update": now.isoformat(),
+                "diagnostico": self._diagnostico.copy(),
             }
             
         except Exception as e:
@@ -243,15 +265,18 @@ class INMETDataUpdateCoordinator(DataUpdateCoordinator):
                 
                 # Mesmo durante erro de rate limiting, manter alertas existentes válidos
                 alertas_finais = await self._merge_alertas_com_persistencia([], dt_util.now())
+                self._diagnostico["pending_caps"] = len(self._pending_caps)
                 
                 return {
                     "alerts": alertas_finais,
                     "count": len(alertas_finais),
                     "estado": self.estado,
                     "last_update": dt_util.now().isoformat(),
-                    "rate_limited": True
+                    "rate_limited": True,
+                    "diagnostico": self._diagnostico.copy(),
                 }
             else:
+                self._diagnostico["ultimo_erro"] = str(e)[:200]
                 raise UpdateFailed(f"Erro ao atualizar dados: {e}")
             
     async def _process_pending_caps(self, session, alerts: list, new_alert_ids: set, now: datetime) -> None:
@@ -268,14 +293,23 @@ class INMETDataUpdateCoordinator(DataUpdateCoordinator):
                     alerts.append(alert_data)
                     new_alert_ids.add(alert_data["id"])
                     _LOGGER.debug(f"✅ CAP {cap_info['id']} processado com sucesso no retry")
+                    # Resetar contagem ao obter sucesso
+                    self._retry_count[cap_info['id']] = 0
                 else:
-                    # Ainda com problemas, tentar novamente
-                    if self._retry_count.get(cap_info['id'], 0) < 5:
+                    # Ainda com problemas - manter na fila sem limite de tentativas
+                    # Usar backoff exponencial: só tentar novamente após N ciclos
+                    self._retry_count[cap_info['id']] = self._retry_count.get(cap_info['id'], 0) + 1
+                    tentativa = self._retry_count[cap_info['id']]
+                    
+                    if tentativa <= 10:
                         retry_caps.append(cap_info)
-                        self._retry_count[cap_info['id']] = self._retry_count.get(cap_info['id'], 0) + 1
-                        _LOGGER.debug(f"🔄 CAP {cap_info['id']} ainda com rate limiting, tentativa {self._retry_count[cap_info['id']]}")
+                        _LOGGER.debug(f"🔄 CAP {cap_info['id']} ainda com rate limiting, tentativa {tentativa}")
                     else:
-                        _LOGGER.info(f"⏭️ CAP {cap_info['id']} descartado após 5 tentativas (rate limiting persistente)")
+                        # Após 10 tentativas, dar um desconto: resetar a contagem para continuar tentando
+                        # mas com prioridade menor (vai para o final da fila)
+                        _LOGGER.info(f"🔄 CAP {cap_info['id']} ainda com rate limiting após {tentativa} tentativas, resetando contagem")
+                        self._retry_count[cap_info['id']] = 0
+                        retry_caps.append(cap_info)
                         
             except Exception as e:
                 error_msg = str(e).lower()
@@ -285,9 +319,13 @@ class INMETDataUpdateCoordinator(DataUpdateCoordinator):
                 else:
                     _LOGGER.warning(f"Erro no retry do CAP {cap_info['id']}: {e}")
                 
-                if self._retry_count.get(cap_info['id'], 0) < 5:
+                # Manter na fila sem limite de tentativas
+                self._retry_count[cap_info['id']] = self._retry_count.get(cap_info['id'], 0) + 1
+                if self._retry_count[cap_info['id']] <= 10:
                     retry_caps.append(cap_info)
-                    self._retry_count[cap_info['id']] = self._retry_count.get(cap_info['id'], 0) + 1
+                else:
+                    self._retry_count[cap_info['id']] = 0
+                    retry_caps.append(cap_info)
         
         # Atualizar lista de pendentes (remover os removidos + os que falharam ainda estão)
         self._pending_caps = retry_caps + self._pending_caps[10:]
@@ -513,6 +551,9 @@ class INMETDataUpdateCoordinator(DataUpdateCoordinator):
         """Obter dados CAP com tratamento de rate limiting e retry automático."""
         try:
             cap_data = await self._get_cap_data(session, url)
+            # Se conseguiu obter dados, garantir que não há pending duplicado
+            if cap_data and not is_retry:
+                self._remove_pending_cap(alert_id)
             return cap_data
             
         except Exception as e:
@@ -521,15 +562,17 @@ class INMETDataUpdateCoordinator(DataUpdateCoordinator):
             # Detectar rate limiting ou problemas de conectividade
             if any(term in error_msg for term in ["rate limiting", "limite de requisições", "connection reset", "timeout"]):
                 if not is_retry:
-                    # Adicionar à lista de pendentes para retry
-                    cap_info = {
-                        'id': alert_id,
-                        'url': url,
-                        'item': item  # Guardar o item completo para retry
-                    }
-                    self._pending_caps.append(cap_info)
-                    self._retry_count[alert_id] = self._retry_count.get(alert_id, 0) + 1
-                    _LOGGER.debug(f"⏳ CAP {alert_id} adicionado à fila de retry (rate limiting temporário)")
+                    # Só adicionar à fila de pending se ainda não estiver
+                    if not self._is_pending_cap(alert_id):
+                        cap_info = {
+                            'id': alert_id,
+                            'url': url,
+                            'item': item  # Guardar o item completo para retry
+                        }
+                        self._pending_caps.append(cap_info)
+                        _LOGGER.debug(f"⏳ CAP {alert_id} adicionado à fila de retry (rate limiting temporário)")
+                    else:
+                        _LOGGER.debug(f"⏳ CAP {alert_id} já está na fila de retry, ignorando duplicata")
                     return None
                 else:
                     # Em retry, apenas debug - não é erro
@@ -539,6 +582,16 @@ class INMETDataUpdateCoordinator(DataUpdateCoordinator):
                 # Erro diferente de rate limiting, logar e seguir
                 _LOGGER.error(f"Erro ao obter CAP {url}: {e}")
                 return None
+
+    def _is_pending_cap(self, alert_id: str) -> bool:
+        """Verificar se um alerta já está na fila de pending."""
+        return any(cap['id'] == alert_id for cap in self._pending_caps)
+
+    def _remove_pending_cap(self, alert_id: str) -> None:
+        """Remover um alerta da fila de pending se presente."""
+        self._pending_caps = [cap for cap in self._pending_caps if cap['id'] != alert_id]
+        # Resetar contagem de retry quando o CAP é removido com sucesso
+        self._retry_count[alert_id] = 0
 
     async def _get_cap_data(self, session, url: str) -> dict[str, Any] | None:
         """Obter dados CAP (Common Alerting Protocol) do alerta específico."""
@@ -1042,3 +1095,48 @@ class INMETAlertasMapaSensor(CoordinatorEntity, SensorEntity):
             "total_alertas_com_geo": total_alertas_com_geo,
             "ultima_atualizacao": self.coordinator.data.get("last_update"),
         }
+
+
+class INMETAlertasDiagnosticoSensor(CoordinatorEntity, SensorEntity):
+    """Sensor de diagnóstico dos alertas INMET."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:information-outline"
+
+    def __init__(self, coordinator: INMETDataUpdateCoordinator, config_entry: ConfigEntry):
+        super().__init__(coordinator)
+        self._estado = coordinator.estado
+        self._attr_unique_id = f"{DOMAIN}_{self._estado}_diagnostico"
+        self._attr_name = f"Diagnóstico INMET {self._estado}"
+
+    @property
+    def native_value(self) -> str:
+        if not self.coordinator.data:
+            return "inativo"
+        diagnostico = self.coordinator.data.get("diagnostico", {})
+        ultimo_status = diagnostico.get("ultimo_http_status")
+        if diagnostico.get("ultimo_erro"):
+            return "erro"
+        if diagnostico.get("rate_limit_hits", 0) > 0:
+            return "rate_limit"
+        if ultimo_status == 200:
+            return "ok"
+        return "desconhecido"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        attrs = {
+            ATTR_ATTRIBUTION: ATTRIBUTION,
+            "estado": self._estado,
+        }
+        if self.coordinator.data:
+            diagnostico = self.coordinator.data.get("diagnostico", {})
+            attrs.update({
+                "ultimo_http_status": diagnostico.get("ultimo_http_status"),
+                "rate_limit_hits": diagnostico.get("rate_limit_hits", 0),
+                "pending_caps": diagnostico.get("pending_caps", 0),
+                "ultimo_erro": diagnostico.get("ultimo_erro"),
+                "total_alertas_api": diagnostico.get("total_alertas_api", 0),
+                "ciclo_atual": diagnostico.get("ciclo_atual"),
+            })
+        return attrs

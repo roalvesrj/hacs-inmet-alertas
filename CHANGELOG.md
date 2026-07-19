@@ -1,9 +1,25 @@
 # Changelog
 
+## v1.14.0 - 19/07/2026
+
+### ✨ Novos Recursos
+- **Sensor de Diagnóstico** `sensor.inmet_alertas_diagnostico_[estado]` — exibe status HTTP, contagem de rate limits, CAPs pendentes, último erro e ciclo atual
+- **Configuração dinâmica via Options Flow** — `update_interval` e `notificacoes_perigo` agora podem ser alterados sem reinstalar a integração
+
+### 🐛 Correções de Erros
+- Corrigido ciclo de leitura que impedia alertas de serem detectados durante rate limiting persistente — CAPs pendentes não são mais descartados, e a fila foi deduplicada para evitar retry duplicado
+- Aumentado limite de CAPs processados por ciclo de 20 para 50, reduzindo chances de alertas ficarem de fora
+- Retry count de pending CAPs agora é resetado ao obter sucesso, and fresh attempts não incrementam mais o contador de retry
+
+### 🧪 Testes
+- Estrutura de testes migrada para pytest com fixtures compartilhadas
+- 28 testes unitários para `check_state_affected`, `filter_state_municipalities` e `GeoProcessor`
+- Mock de dependências Home Assistant para execução standalone
+
 ## v1.13.1 - 17/07/2026
 
 ### 🐛 Correções de Erros
-- Corrigido import incorreto em `__init__.py` que impedia a integração de carregar no Home Assistant (`voluptuous.as cv` → `homeassistant.helpers.config_validation as cv`)
+- Corrigido import incorreto em `__init__.py` que impedia a integração de carregar no Home Assistant (`voluptuous as cv` → `homeassistant.helpers.config_validation as cv`)
 
 ## v1.13.0 - 16/07/2026
 

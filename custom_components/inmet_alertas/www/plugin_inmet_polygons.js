@@ -21,6 +21,7 @@ export default function(L, pluginBase, Logger) {
       this.entityPrefix = options.entityPrefix || 'sensor.inmet_alertas_mapa_';
       this.updateInterval = options.updateInterval || 60000; // 1 minuto
       this.showLabels = options.showLabels !== false; // true por padrão
+      this.autoFocus = options.autoFocus !== false; // true por padrão
       
       // Cores por severidade (cores oficiais INMET)
       this.severityColors = {
@@ -312,8 +313,64 @@ export default function(L, pluginBase, Logger) {
         
         Logger.debug(`[INMETPolygonsPlugin] Atualização completa - ${totalPolygons} polígonos adicionados ao mapa`);
         
+        // AutoFocus: centralizar mapa no estado se configurado
+        if (this.autoFocus && totalPolygons > 0) {
+          this._autoFocusMap();
+        }
+        
       } catch (error) {
         Logger.error(`[INMETPolygonsPlugin] Erro na atualização:`, error);
+      }
+    }
+
+    _autoFocusMap() {
+      try {
+        const hass = this._hassRef || this.hass || window.hass;
+        if (!hass || !hass.states) return;
+
+        let bestEntity = null;
+        let bestSigla = null;
+
+        // Procurar o primeiro estado configurado com dados geográficos
+        for (const estadoNome of this.states) {
+          const estadoSigla = this.stateMapping[estadoNome];
+          if (!estadoSigla) continue;
+
+          const entityId = `${this.entityPrefix}${estadoSigla}`;
+          const entity = hass.states[entityId];
+          if (!entity || !entity.attributes) continue;
+
+          const attrs = entity.attributes;
+
+          // Usar centro_geografico e zoom_recomendado se disponíveis
+          if (attrs.centro_geografico) {
+            bestEntity = entity;
+            bestSigla = estadoSigla.toUpperCase();
+            break;
+          }
+        }
+
+        if (!bestEntity) return;
+
+        const attrs = bestEntity.attributes;
+        let center = attrs.centro_geografico;
+        let zoom = attrs.zoom_recomendado;
+
+        // Fallback: calcular centro da bounding box
+        if (!center && attrs.bounding_box) {
+          const bb = attrs.bounding_box;
+          center = [
+            (bb.min_lat + bb.max_lat) / 2,
+            (bb.min_lon + bb.max_lon) / 2
+          ];
+        }
+
+        if (center && Array.isArray(center) && center.length >= 2) {
+          console.log(`📍 [INMET] AutoFocus: centralizando em [${center[0].toFixed(4)}, ${center[1].toFixed(4)}] zoom ${zoom || 8}`);
+          this.map.setView(center, zoom || 8);
+        }
+      } catch (error) {
+        console.error('❌ [INMET] Erro no autoFocus:', error);
       }
     }
 
